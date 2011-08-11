@@ -1,0 +1,7 @@
+The ball bearing sequencer written for the BV Studios Open Day October 2011.
+
+Depends on:
+https://github.com/aaronds/umachines
+https://github.com/aaronds/umachines-cron
+
+Clone or download all dependencies, symlink or copy all directories (excluding 'examples') into your Arduino 'libraries' folder.
