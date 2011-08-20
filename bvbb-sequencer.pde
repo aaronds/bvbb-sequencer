@@ -9,6 +9,8 @@
 #include <UMachineMillisTicker.h>
 #include <UCallbackMessage.h>
 #include <UMachineCallback.h>
+#include <USPIMessage.h>
+#include <UMachineSPI.h>
 #include <BBBeatState.h>
 #include <BBPinOut.h>
 #include <BBSequencer.h>
@@ -47,11 +49,15 @@
 /* Peroidic action scheduler*/
 UMachineCron uCron = UMachineCron();
 
+/* Hardware SPI */
+
+UMachineSPI uSpi = UMachineSPI();
+
 /* Send generate a 'tick' message every milisecond*/
 UMachineMillisTicker uMillisTicker = UMachineMillisTicker(&uCron,&uCron.tick);
 
 BBSequencer sequencer = BBSequencer(&uCron,CHANNEL_COUNT,BEAT_CT);
-BBInterface userInterface = BBInterface(&uCron,&sequencer,UI_IDLE_TIME,UI_SAMPLE_TIME);
+BBInterface userInterface = BBInterface(&uCron,&uSpi,&sequencer,UI_IDLE_TIME,UI_SAMPLE_TIME);
 
 UMachineCallback uCallbackDispatcher = UMachineCallback(&uCron);
 
@@ -61,7 +67,7 @@ void setup(){
   
   /* Initalize the spi for the UI. */
   
-  SPI.begin();
+  uSpi.begin();
   
   /* Setup the chanel output pins */
   

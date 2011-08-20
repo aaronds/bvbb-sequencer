@@ -9,18 +9,26 @@
 
 #include <UMachine.h>
 #include <UMachineCron.h>
+#include <UMachineSPI.h>
 #include <BBSequencer.h>
 #include <BBBeatState.h>
+
+#define BB_INTERFACE_BUFFER_SIZE 1
 
 enum BBInterfaceState {BBInterfaceWaiting, BBInterfaceSampling, BBInterfaceLoading, BBInterfaceReading, BBInterfacePause, BBInterfaceAdvance};
 
 class BBInterface : public UMachine {
 
 	public:
-		BBInterface(UMachineCron *cron,BBSequencer *seq,uint16_t it,uint16_t st);
+		BBInterface(UMachineCron *cron,UMachineSPI *spi,BBSequencer *seq,uint16_t it,uint16_t st);
 		BBSequencer *sequencer;
+		
 		UMachineCron *uCron;
 		UMachineCronMessage tick;
+
+		UMachineSPI *uSpi;
+		USPIMessage spiData;
+		uint8_t spiBuffer[BB_INTERFACE_BUFFER_SIZE];
 
 		/* The current beat. */
 		uint8_t beatIdx;
@@ -33,9 +41,6 @@ class BBInterface : public UMachine {
 
 		/* Latch pin to triger 74....*/
 		uint8_t latchPin;
-
-		/* Clock Enable Pin */
-		uint8_t clockEnablePin;
 
 		/* The current state */
 		BBInterfaceState state;

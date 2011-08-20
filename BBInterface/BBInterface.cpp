@@ -1,13 +1,19 @@
 #include "BBInterface.h"
 #include <WProgram.h>
 
-BBInterface::BBInterface(UMachineCron *cron,BBSequencer *seq,uint16_t it,uint16_t st) : UMachine() {
+BBInterface::BBInterface(UMachineCron *cron,UMachineSPI *spi,BBSequencer *seq,uint16_t it,uint16_t st) : UMachine() {
 	uCron = cron;
 	sequencer = seq;
 	beatIdx = 0;
 	idleTime = it;
 	sampleTime = st; 
 	state = BBInterfaceWaiting;
+	
+	uSpi = spi;
+	spiData.buffer = spiBuffer;
+	spiData.dataMode = SPI_MODE0;
+	spiData.bitOrder = MSBFIRST;
+	spiData.length = BB_INTERFACE_BUFFER_SIZE;
 }
 
 void BBInterface::init(uint8_t lp,uint8_t cePin){
@@ -15,13 +21,13 @@ void BBInterface::init(uint8_t lp,uint8_t cePin){
 	send(&tick,uCron);
 
 	latchPin = lp;
-	clockEnablePin = cePin;
+	spiData.clockEnablePin = cePin;
 
 	pinMode(latchPin,OUTPUT);
 	digitalWrite(latchPin,HIGH);
 
-	pinMode(clockEnablePin,OUTPUT);
-	digitalWrite(clockEnablePin,HIGH);
+	pinMode(spiData.clockEnablePin,OUTPUT);
+	digitalWrite(spiData.clockEnablePin,HIGH);
 }
 
 UMessage *BBInterface::receive(UMessage *msg){
@@ -45,42 +51,31 @@ UMessage *BBInterface::receive(UMessage *msg){
 			break;
 
 		case BBInterfaceLoading:
-			digitalWrite(clockEnablePin,LOW);
-			SPDR = (1 << beatIdx);
-			send(&tick,this);
+			*((uint8_t *) spiData.buffer) = (1 << beatIdx);
+			send(&spiData,uSpi);
 			state = BBInterfaceReading;	
 			break;
 
 		case BBInterfaceReading:
-			if(!(SPSR & _BV(SPIF))){ /* Loop Until */
-				send(&tick,this); 
-			}else{
-				digitalWrite(clockEnablePin,HIGH);
-				sequencer->state.state = ~SPDR;
-				sequencer->state.index = (beatIdx + sequencer->beatCount - 1) % sequencer->beatCount;
-				send(&sequencer->state,sequencer);
-				beatIdx = ((beatIdx + 1) % sequencer->beatCount);
-				tick.time = sampleTime;
-				send(&tick,uCron);
-				state = BBInterfacePause;
-			}
+			sequencer->state.state = ~(*((uint8_t *) spiData.buffer));
+			sequencer->state.index = (beatIdx + sequencer->beatCount - 1) % sequencer->beatCount;
+			send(&sequencer->state,sequencer);
+			beatIdx = ((beatIdx + 1) % sequencer->beatCount);
+			tick.time = sampleTime;
+			send(&tick,uCron);
+			state = BBInterfacePause;
 			break;
 
 		case BBInterfacePause:
-			digitalWrite(clockEnablePin,LOW);
-			SPDR = (1 << beatIdx);
-			send(&tick,this);
+			*((uint8_t *) spiData.buffer) = (1 << beatIdx);
+			send(&spiData,uSpi);
 			state = BBInterfaceAdvance;
 			break;
 
 		case BBInterfaceAdvance:
-			if(!(SPSR & _BV(SPIF))){ /* Loop Until */
-				send(&tick,this); 
-			}else{
-				tick.time = idleTime;
-				send(&tick,uCron);
-				state = BBInterfaceWaiting;
-			}
+			tick.time = idleTime;
+			send(&tick,uCron);
+			state = BBInterfaceWaiting;
 			break;
 
 		default:
