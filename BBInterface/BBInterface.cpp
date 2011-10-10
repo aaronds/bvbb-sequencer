@@ -1,7 +1,8 @@
 #include "BBInterface.h"
 #include <WProgram.h>
+#include <HardwareSerial.h>
 
-BBInterface::BBInterface(UMachineCron *cron,UMachineSPI *spi,BBSequencer *seq,uint16_t it,uint16_t st) : UMachine() {
+BBInterface::BBInterface(UMachineCron *cron,UMachineSPI *spi,BBRootSequencer *seq,uint16_t it,uint16_t st) : UMachine() {
 	uCron = cron;
 	sequencer = seq;
 	beatIdx = 0;
@@ -57,10 +58,14 @@ UMessage *BBInterface::receive(UMessage *msg){
 			break;
 
 		case BBInterfaceReading:
-			sequencer->state.state = ~(*((uint8_t *) spiData.buffer));
-			sequencer->state.index = (beatIdx + sequencer->beatCount - 1) % sequencer->beatCount;
-			send(&sequencer->state,sequencer);
+			sequencer->updateBeat.data = (uint8_t) ~(*((uint8_t *) spiData.buffer));
+			sequencer->updateBeat.index = (beatIdx) % sequencer->beatCount;
+			send(&sequencer->updateBeat,sequencer);
 			beatIdx = ((beatIdx + 1) % sequencer->beatCount);
+			state = BBInterfaceWaitingForSequencer;
+			break;
+
+		case BBInterfaceWaitingForSequencer:
 			tick.time = sampleTime;
 			send(&tick,uCron);
 			state = BBInterfacePause;

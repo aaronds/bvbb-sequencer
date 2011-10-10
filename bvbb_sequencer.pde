@@ -11,9 +11,12 @@
 #include <UMachineCallback.h>
 #include <USPIMessage.h>
 #include <UMachineSPI.h>
-#include <BBBeatState.h>
+#include <BBBeat.h>
 #include <BBPinOut.h>
 #include <BBSequencer.h>
+#include <BBRootSequencer.h>
+#include <BBPinSequencer.h>
+#include <BBSerialSequencer.h>
 #include <BBInterface.h>
 
 /* Channels */
@@ -31,7 +34,7 @@
 /* Beats */
 
 #define BEAT_PERIOD 500
-#define BEAT_CT 4
+#define BEAT_COUNT 4
 
 /* UI control pins */
 
@@ -56,8 +59,11 @@ UMachineSPI uSpi = UMachineSPI();
 /* Send generate a 'tick' message every milisecond*/
 UMachineMillisTicker uMillisTicker = UMachineMillisTicker(&uCron,&uCron.tick);
 
-BBSequencer sequencer = BBSequencer(&uCron,CHANNEL_COUNT,BEAT_CT);
-BBInterface userInterface = BBInterface(&uCron,&uSpi,&sequencer,UI_IDLE_TIME,UI_SAMPLE_TIME);
+BBRootSequencer rootSequencer = BBRootSequencer(&uCron,BEAT_COUNT);
+BBPinSequencer pinSequencer = BBPinSequencer(&uCron,&rootSequencer,CHANNEL_COUNT);
+BBSerialSequencer serialSequencer = BBSerialSequencer(&rootSequencer,CHANNEL_COUNT);
+
+BBInterface userInterface = BBInterface(&uCron,&uSpi,&rootSequencer,UI_IDLE_TIME,UI_SAMPLE_TIME);
 
 UMachineCallback uCallbackDispatcher = UMachineCallback(&uCron);
 
@@ -75,23 +81,26 @@ void setup(){
   pinMode(CHANNEL1_PIN,OUTPUT);
   pinMode(CHANNEL2_PIN,OUTPUT);
   
-  sequencer.setPin(CHANNEL0,CHANNEL0_PIN);
-  sequencer.setPin(CHANNEL1,CHANNEL1_PIN);
-  sequencer.setPin(CHANNEL2,CHANNEL2_PIN);
+  pinSequencer.setPin(CHANNEL0,CHANNEL0_PIN);
+  pinSequencer.setPin(CHANNEL1,CHANNEL1_PIN);
+  pinSequencer.setPin(CHANNEL2,CHANNEL2_PIN);
   
   /* Setup the delay between the beat message and raising
    * the output pin, desiged to effect latency compensation.
    */
   
-  sequencer.setDelay(CHANNEL0,1);
-  sequencer.setDelay(CHANNEL1,1);
-  sequencer.setDelay(CHANNEL2,1);
+  pinSequencer.setLatency(CHANNEL0,1);
+  pinSequencer.setLatency(CHANNEL1,1);
+  pinSequencer.setLatency(CHANNEL2,1);
   
   /*
    * Set the delay between beats
    */
   
-  sequencer.setPeriod(BEAT_PERIOD);
+  rootSequencer.setPeriod(BEAT_PERIOD);
+  rootSequencer.addSequencer(&pinSequencer);
+  rootSequencer.addSequencer(&serialSequencer);
+  rootSequencer.setInterface(&userInterface);
   
   /* Initalize the ball baring interface */
   
@@ -99,8 +108,7 @@ void setup(){
     
   /* Start the sequencer */
     
-  sequencer.send(&sequencer.beat,&uCron);
-  
+  rootSequencer.send(&rootSequencer.beat,&uCron);
   uMillisTicker.send(&uMillisTicker.loop,&uMillisTicker);
   
   Serial.println("Done");

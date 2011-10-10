@@ -10,18 +10,18 @@
 #include <UMachine.h>
 #include <UMachineCron.h>
 #include <UMachineSPI.h>
-#include <BBSequencer.h>
-#include <BBBeatState.h>
+#include <BBRootSequencer.h>
+#include <BBBeat.h>
 
 #define BB_INTERFACE_BUFFER_SIZE 1
 
-enum BBInterfaceState {BBInterfaceWaiting, BBInterfaceSampling, BBInterfaceLoading, BBInterfaceReading, BBInterfacePause, BBInterfaceAdvance};
+enum BBInterfaceState {BBInterfaceWaiting, BBInterfaceSampling, BBInterfaceLoading, BBInterfaceReading,BBInterfaceWaitingForSequencer, BBInterfacePause, BBInterfaceAdvance};
 
 class BBInterface : public UMachine {
 
 	public:
-		BBInterface(UMachineCron *cron,UMachineSPI *spi,BBSequencer *seq,uint16_t it,uint16_t st);
-		BBSequencer *sequencer;
+		BBInterface(UMachineCron *cron,UMachineSPI *spi,BBRootSequencer *seq,uint16_t it,uint16_t st);
+		BBRootSequencer *sequencer;
 		
 		UMachineCron *uCron;
 		UMachineCronMessage tick;
@@ -50,4 +50,4 @@ class BBInterface : public UMachine {
 		UMessage *receive(UMessage *msg);
 };
 
-#endif __BB_INTERFACE
+#endif
